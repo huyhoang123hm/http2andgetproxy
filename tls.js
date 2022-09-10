@@ -59,7 +59,7 @@ class TlsBuilder {
     http2TUNNEL(socket){
         socket.setKeepAlive(true, 1000);
         socket.setTimeout(10000);
-        payload[":method"] = "POST";
+        payload[":method"] = "GET";
         payload["Referer"] = objetive;
         payload["User-agent"] = UAs[Math.floor(Math.random() * UAs.length)]
         payload["Cache-Control"] = 'no-cache, no-store,private, max-age=0, must-revalidate';
