@@ -12,9 +12,9 @@ proxy_type_list = {
 }
 proxy_type = sys.argv[1]
 pysocks_proxy_type = proxy_type_list[proxy_type]
-input_file = sys.argv[2]
-output_file = sys.argv[3]
-timeout = int(sys.argv[4])
+input_file = "proxy.txt"
+output_file = "proxy.txt"
+timeout = 5
 total_socks = [proxy.strip() for proxy in open(input_file)]
 live_socks = []
 live_socks_counter = 0
