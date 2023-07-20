@@ -4,7 +4,6 @@ import socket
 import psutil
 import time
 import subprocess
-import re
 
 def get_network_stats():
     # Get the network stats for the specified interface (e.g., eth0)
@@ -25,18 +24,7 @@ def block_ip(ip):
     subprocess.run(f"sudo iptables -A INPUT -s {ip} -j DROP", shell=True)
     print(f"Blocked {ip} for suspicious traffic.")
 
-def extract_ips_from_log(log_file_path):
-    ips = set()
-
-    with open(log_file_path, "r") as log_file:
-        for line in log_file:
-            line_ips = re.findall(r"\b(?:\d{1,3}\.){3}\d{1,3}\b", line)
-            ips.update(line_ips)
-
-    return ips
-
 def detect_ddos(mbps_threshold, pps_threshold):
-    log_file_path = "/var/log/auth.log"  # Replace with the path to your log file
     while True:
         net_stats = get_network_stats()
         mbps = get_mbps(net_stats)
@@ -46,8 +34,11 @@ def detect_ddos(mbps_threshold, pps_threshold):
 
         if mbps > mbps_threshold or pps > pps_threshold:
             print("DDoS detected!")
-            ips = extract_ips_from_log(log_file_path)
-
+            # Get a list of all source IP addresses in the '/var/log/auth.log' file
+            cmd = "grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' /var/log/auth.log | sort | uniq"
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            ips = set(result.stdout.strip().splitlines())
+            
             # Block all suspicious IPs
             for ip in ips:
                 block_ip(ip)
