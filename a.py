@@ -1,31 +1,61 @@
-import requests
-check='5'
-if check=='5':
-    a=''
-    a=a+requests.get(url='https://api.proxyscrape.com/?request=displayproxies&proxytype=http&country=all').text.strip()+'\n'
-    a=a+requests.get(url='https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/http.txt').text.strip()+'\n'
-    a=a+requests.get(url='https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/http.txt').text.strip()+'\n'
-    a=a+requests.get(url='https://raw.githubusercontent.com/jetkai/proxy-list/main/online-proxies/txt/proxies-http.txt').text.strip()+'\n'
-    a=a+requests.get(url='https://raw.githubusercontent.com/rdavydov/proxy-list/main/proxies/http.txt').text.strip()+'\n'
-    a=a+requests.get(url='https://raw.githubusercontent.com/RX4096/proxy-list/main/online/http.txt').text.strip()+'\n'
-    a=a+requests.get(url='https://raw.githubusercontent.com/roosterkid/openproxylist/main/HTTPS_RAW.txt').text.strip()+'\n'
-    a=a+requests.get(url='https://raw.githubusercontent.com/ShiftyTR/Proxy-List/master/http.txt').text.strip()+'\n'
-    a=a+requests.get(url='https://www.proxy-list.download/api/v1/get?type=http').text.strip()+'\n'
-    a=a+requests.get(url='https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http&timeout=5000&country=all&ssl=all&anonymity=all').text.strip()+'\n'
-    a=a+requests.get(url='https://openproxylist.xyz/http.txt').text.strip()+'\n'
-    a=a+requests.get(url='http://pubproxy.com/api/proxy?limit=10&format=txt&type=http').text.strip()+'\n'
-    a=a+requests.get(url='http://www.proxylists.net/http.txt').text.strip()+'\n'
+#!/usr/bin/env python3
 
-    file=open('proxy.txt','w')
-    file.write(a)
-    file.close()
-    file=open('proxy.txt')
-    a=file.readlines()
-    file.close()
-    file=open('proxy.txt','w')
-    for i in a:
-      if i.strip()!='':
-        file.write(i)
-    file.close()
+import socket
+import psutil
+import time
+import subprocess
+import re
 
+def get_network_stats():
+    # Get the network stats for the specified interface (e.g., eth0)
+    net_interface = "eth0"  # Replace with your network interface
+    net_stats = psutil.net_io_counters(pernic=True).get(net_interface)
+    return net_stats
 
+def get_mbps(stats):
+    # Calculate the network traffic in Mbps
+    return (stats.bytes_sent + stats.bytes_recv) * 8 / 1000000
+
+def get_pps(stats):
+    # Calculate the packets per second
+    return stats.packets_sent + stats.packets_recv
+
+def block_ip(ip):
+    # Add an 'iptables' rule to block incoming traffic from the specified IP
+    subprocess.run(f"sudo iptables -A INPUT -s {ip} -j DROP", shell=True)
+    print(f"Blocked {ip} for suspicious traffic.")
+
+def extract_ips_from_log(log_file_path):
+    ips = set()
+
+    with open(log_file_path, "r") as log_file:
+        for line in log_file:
+            line_ips = re.findall(r"\b(?:\d{1,3}\.){3}\d{1,3}\b", line)
+            ips.update(line_ips)
+
+    return ips
+
+def detect_ddos(mbps_threshold, pps_threshold):
+    log_file_path = "/var/log/auth.log"  # Replace with the path to your log file
+    while True:
+        net_stats = get_network_stats()
+        mbps = get_mbps(net_stats)
+        pps = get_pps(net_stats)
+
+        print(f"Mbps: {mbps:.2f} | PPS: {pps}")
+
+        if mbps > mbps_threshold or pps > pps_threshold:
+            print("DDoS detected!")
+            ips = extract_ips_from_log(log_file_path)
+
+            # Block all suspicious IPs
+            for ip in ips:
+                block_ip(ip)
+
+        time.sleep(1)  # Wait for 1 second before checking again
+
+if __name__ == "__main__":
+    mbps_threshold = 100  # Set the Mbps threshold for DDoS detection
+    pps_threshold = 1000  # Set the pps threshold for DDoS detection
+
+    detect_ddos(mbps_threshold, pps_threshold)
